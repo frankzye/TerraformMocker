@@ -2,3 +2,5 @@
 .terraform
 terraform.tfstate
 .terraform.lock.hcl
+certs/*.crt
+.terraform.tfstate.lock.info
