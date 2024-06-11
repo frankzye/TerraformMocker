@@ -1,13 +1,14 @@
 import json
 import logging
 
-from db_op import insert_metric, insert_mocks
-from predict import predict
-from proxy.proxy2 import ProxyRequestHandler, test
+from .db_op import Report
+from .predict import predict
+from .proxy.proxy2 import ProxyRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s: %(message)s')
 
+# sample token
 access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Imk2bEdrM0ZaenhSY1ViMkMzbkVRN3N5SEpsWSJ9" \
                ".eyJhdWQiOiI2ZTc0MTcyYi1iZTU2LTQ4NDMtOWZmNC1lNjZhMzliYjEyZTMiLCJpc3MiOiJodHRwczovL2xvZ2" \
                "luLm1pY3Jvc29mdG9ubGluZS5jb20vNzJmOTg4YmYtODZmMS00MWFmLTkxYWItMmQ3Y2QwMTFkYjQ3L3YyLjAiLCJpYX" \
@@ -21,6 +22,13 @@ access_token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6Imk2bEdrM0ZaenhSY1Vi
 
 
 class SSLStripRequestHandler(ProxyRequestHandler):
+    mock_func = None
+    db_config = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.report = Report(self.db_config)
+
     def request_handler(self, req, req_body):
         self.close_connection = True
         u = urlsplit(req.path)
@@ -42,19 +50,40 @@ class SSLStripRequestHandler(ProxyRequestHandler):
                 })
             }
 
-        res = predict(req, req_body)
+        if self.mock_func is None:
+            res = predict(req, req_body)
+        else:
+            res = self.mock_func(req, req_body)
+
         if res is not None:
-            insert_mocks(url=req.path, method=req.command, request_headers=req.headers.items(),
-                         request_payload=req_body, status=res.code, response_headers=res.headers.items(),
-                         response_payload=res.body.decode("utf-8"))
+            self.report.insert_mocks(url=req.path, method=req.command, request_headers=req.headers.items(),
+                                     request_payload=req_body, status=res.code, response_headers=res.headers.items(),
+                                     response_payload=res.body.decode("utf-8"))
             return res
 
     def response_handler(self, req, req_body, res, res_body):
-        insert_metric(url=req.path, method=req.command, request_headers=req.headers.items(),
-                      request_payload=req_body, status=res.code, response_headers=res.headers.items(),
-                      response_payload=res_body.decode("utf-8"))
+        self.report.insert_metric(url=req.path, method=req.command, request_headers=req.headers.items(),
+                                  request_payload=req_body, status=res.code, response_headers=res.headers.items(),
+                                  response_payload=res_body.decode("utf-8"))
         return
 
 
+class MockServer:
+    def __init__(self, mock_func, db_config=None, mock=True, port=8081):
+        server_address = ('::1', port)
+        SSLStripRequestHandler.protocol_version = "HTTP/1.1"
+        SSLStripRequestHandler.mock_func = mock_func
+        SSLStripRequestHandler.db_config = db_config
+        httpd = ThreadingHTTPServer(server_address, SSLStripRequestHandler)
+        sa = httpd.socket.getsockname()
+        logging.info(f"Serving HTTP Proxy on {sa[0]} {port} {sa[1]} ...")
+        httpd.serve_forever()
+        self.mock = mock
+        self.httpd = httpd
+
+    def close(self):
+        self.httpd.server_close()
+
+
 if __name__ == '__main__':
-    test(HandlerClass=SSLStripRequestHandler)
+    MockServer()

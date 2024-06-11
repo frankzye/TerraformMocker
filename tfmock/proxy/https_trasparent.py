@@ -4,7 +4,7 @@ import ssl
 import sys
 from http.server import ThreadingHTTPServer, HTTPServer
 
-from proxy.proxy2 import ProxyRequestHandler
+from tfmock.proxy.proxy2 import ProxyRequestHandler
 
 
 class ThreadingHTTPSServer(ThreadingHTTPServer):

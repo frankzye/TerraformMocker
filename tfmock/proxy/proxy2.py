@@ -383,7 +383,3 @@ def test(HandlerClass=ProxyRequestHandler, ServerClass=ThreadingHTTPServer, prot
     sa = httpd.socket.getsockname()
     logging.info(f"Serving HTTP Proxy on {sa[0]} {port} {sa[1]} ...")
     httpd.serve_forever()
-
-
-if __name__ == '__main__':
-    test()
