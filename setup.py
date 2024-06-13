@@ -8,7 +8,7 @@ long_description = pathlib.Path(os.path.join(root_folder, "readme.md")).read_tex
 
 setup(
     name='tfmock',
-    version='0.0.4',
+    version='0.0.7',
     install_requires=[],
     packages=['tfmock'],
     package_data={
