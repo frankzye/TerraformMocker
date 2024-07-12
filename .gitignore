@@ -5,3 +5,5 @@ terraform.tfstate
 *.crt
 .terraform.tfstate.lock.info
 dist
+mock.db
+terraform.tfstate.backup

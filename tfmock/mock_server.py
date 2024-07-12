@@ -1,6 +1,7 @@
 import logging
 from concurrent.futures import ThreadPoolExecutor
 
+from tfmock.cloud_services.azure.azure import AzureMocker
 from tfmock.predict import predict
 from tfmock.proxy.proxy2 import ProxyRequestHandler, ThreadingHTTPServer
 
@@ -48,3 +49,8 @@ class MockServer:
     def close(self):
         self.httpd.shutdown()
         self.executor.shutdown(wait=False, cancel_futures=True)
+
+
+if __name__ == '__main__':
+    mocker = AzureMocker()
+    MockServer(mock_func=mocker.mock_request)

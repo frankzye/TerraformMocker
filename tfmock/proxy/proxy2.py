@@ -21,12 +21,13 @@ import http.client
 
 
 def join_with_script_dir(path):
-    return os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+    return os.environ.get('tfmock_cert_dir', os.path.join(os.path.dirname(os.path.abspath(__file__)), path))
 
 
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     address_family = socket.AF_INET6
     daemon_threads = True
+    request_queue_size = int(os.environ.get("request_queue_size", 200))
 
     def handle_error(self, request, client_address):
         cls, e = sys.exc_info()[:2]
@@ -49,6 +50,7 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.tls = threading.local()
         self.tls.conns = {}
         self._headers_buffer = []
+        os.makedirs(self.certdir, exist_ok=True)
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
     def log_error(self, format, *args):
@@ -76,7 +78,12 @@ class ProxyRequestHandler(BaseHTTPRequestHandler):
         self.wfile.write(f"{self.protocol_version} 200 Connection Established\r\n".encode("utf-8"))
         self.end_headers()
 
-        self.connection = ssl.wrap_socket(self.connection, keyfile=self.certkey, certfile=certpath, server_side=True)
+        if ssl.SSLContext is not None:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            context.load_cert_chain(certpath, self.certkey)
+            self.connection = context.wrap_socket(self.connection, server_side=True)
+        else:
+            self.connection = ssl.wrap_socket(self.connection, keyfile=self.certkey, certfile=certpath, server_side=True)
         self.rfile = self.connection.makefile("rb", self.rbufsize)
         self.wfile = self.connection.makefile("wb", self.wbufsize)
 
