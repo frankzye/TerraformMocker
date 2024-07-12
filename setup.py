@@ -12,7 +12,7 @@ setup(
     install_requires=[],
     packages=['tfmock'],
     package_data={
-        '': ['config/*', 'proxy/*']
+        '': ['config/*', 'proxy/*', 'cloud_services/*', 'cloud_services/azure/*', 'cloud_services/azure/services/*']
     },
     include_package_data=True,
     long_description=long_description,
